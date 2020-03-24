@@ -1,6 +1,7 @@
 import numpy as np
 import pywren_ibm_cloud as pywren
 import pickle
+import time
 from random import randint
 
 
@@ -86,7 +87,7 @@ def reduce_function(results, ibm_cos):
                     #He d'agafar el seguen perque no puc estar una posició sense apuntar res
                     longitud=len(results[k])
                     if longitud >1 :
-                        alor = results[k][contador_intern]
+                        valor = results[k][contador_intern]
                         C[i,j]=valor
                         contador_intern=contador_intern+1
                     else:
@@ -103,14 +104,46 @@ def reduce_function(results, ibm_cos):
 
 if __name__ == '__main__':
     pw = pywren.ibm_cf_executor()
-    fila=2
-    columna=2
-    columnaB=4
-    pw.call_async(inicialitzacio, [fila,columna,columnaB])
+    fila=50
+    columna=50
+    columnaB=30
     operacions=fila *columnaB
-    #1 operació cada un
+    workers=20
+
+
+    #D'aquesta manera tenim les operacions que ha de fer cada worker i les que falten
+    operacions_worker= operacions // workers
+    resten = operacions - (operacions_worker * workers)
+    #Inicialitzem les matrius
+    pw.call_async(inicialitzacio, [fila,columna,columnaB])
+    
+    #Creem les dades per passar al map_reduce
+    iterdata=[]
+    f_inici=0;
+    c_inici=0;
+    for i in range(workers):
+        if f_inici < fila:
+            if c_inici >= columnaB:
+                #si estem aqui vol dir que hem de posar columna 0 i aumentar la fila
+                diferencia = c_inici - columnaB
+                c_inici=diferencia
+                f_inici=f_inici+1
+        #Si es l'ultim ha de fer les que faltin no només les necessaries
+        if (i == (workers - 1) and (resten != 0 )): 
+            iterdata.append([f_inici, c_inici, operacions_worker + resten, fila, columnaB ])
+        else:
+            iterdata.append([f_inici, c_inici, operacions_worker, fila, columnaB ])
+        c_inici = c_inici + operacions_worker
+
     #iterdata= [[0,0,1,fila,columnaB], [0,1,1,fila,columnaB], [1,0,1,fila,columnaB], [1,1,1,fila,columnaB]]
-    iterdata= [[0,0,4,fila,columnaB], [1,0,2,fila,columnaB], [1,2,1,fila,columnaB], [1,3,1,fila,columnaB]]
-    pw.map_reduce(matrix_mul, iterdata, reduce_function)
-    #pw.call_async(matrix_mul, [0,0,operacions, fila, columnaB] )
+    #iterdata= [[0,0,4,fila,columnaB], [1,0,2,fila,columnaB], [1,2,1,fila,columnaB], [1,3,1,fila,columnaB]]
+
+    #Fem la crida al map_reduce
+    start_time = time.time()
+    futures = pw.map_reduce(matrix_mul, iterdata, reduce_function)
+    pw.wait(futures)
+    elapsed_time = time.time() - start_time
     print(pw.get_result())
+    print()
+    print("EL TEMPS QUE HA TRIGAT ES:")
+    print(elapsed_time)
