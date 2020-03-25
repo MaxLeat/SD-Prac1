@@ -35,31 +35,25 @@ def inicialitzacio(files, columnes, columnesB, ibm_cos):
     #Pujo la matriu C per omplir-la al reduce
     ibm_cos.put_object(Bucket='sdurv', Key='MatriuC.txt', Body = pickle.dumps(C, pickle.HIGHEST_PROTOCOL))
 
-def matrix_mul(fila, columna, operacions, fila_max, columna_max, ibm_cos):
+def matrix_mul(fitxers, ibm_cos):
 
     resultats=[]
-    filaStr="Fila_"
-    colunnaStr="Columna_"
-    resultatStr="F_"
     i=0
-    while i < operacions:
-        if fila < fila_max:
-            if columna >= columna_max:
-                #si estem aqui vol dir que hem de posar columna 0 i aumentar la fila
-                columna=0
-                fila=fila+1
-            #Descarrego els arxius que em fan falta
-            fitxerA=filaStr + str(fila)
-            fitxerB=colunnaStr + str(columna)
-            A_s=ibm_cos.get_object(Bucket='sdurv', Key=fitxerA)['Body'].read()
-            B_s=ibm_cos.get_object(Bucket='sdurv', Key=fitxerB)['Body'].read()
-            A=pickle.loads(A_s)
-            B=pickle.loads(B_s)
-            #Faig les operacions
-            C=A.dot(B)
-            resultats.append(C)
-        columna=columna+1
-        i=i+1
+    #Aqui tinc de dos en dos els noms dels fitxers
+    fit= fitxers.split()
+    num_strings = len(fit)
+    while i < num_strings:
+        #Descarrego els arxius que em fan falta
+        fitxerA=fit[i]
+        fitxerB=fit[i+1]
+        A_s=ibm_cos.get_object(Bucket='sdurv', Key=fitxerA)['Body'].read()
+        B_s=ibm_cos.get_object(Bucket='sdurv', Key=fitxerB)['Body'].read()
+        A=pickle.loads(A_s)
+        B=pickle.loads(B_s)
+        #Faig les operacions
+        C=A.dot(B)
+        resultats.append(C)
+        i=i+2
     return resultats
 
 def reduce_function(results, ibm_cos):
@@ -104,12 +98,11 @@ def reduce_function(results, ibm_cos):
 
 if __name__ == '__main__':
     pw = pywren.ibm_cf_executor()
-    fila=50
-    columna=50
-    columnaB=30
+    fila=2
+    columna=2
+    columnaB=4
     operacions=fila *columnaB
-    workers=20
-
+    workers=4
 
     #D'aquesta manera tenim les operacions que ha de fer cada worker i les que falten
     operacions_worker= operacions // workers
@@ -121,22 +114,28 @@ if __name__ == '__main__':
     iterdata=[]
     f_inici=0;
     c_inici=0;
+    filaStr="Fila_"
+    colunnaStr="Columna_"
     for i in range(workers):
-        if f_inici < fila:
-            if c_inici >= columnaB:
-                #si estem aqui vol dir que hem de posar columna 0 i aumentar la fila
-                diferencia = c_inici - columnaB
-                c_inici=diferencia
-                f_inici=f_inici+1
-        #Si es l'ultim ha de fer les que faltin no només les necessaries
-        if (i == (workers - 1) and (resten != 0 )): 
-            iterdata.append([f_inici, c_inici, operacions_worker + resten, fila, columnaB ])
-        else:
-            iterdata.append([f_inici, c_inici, operacions_worker, fila, columnaB ])
-        c_inici = c_inici + operacions_worker
-
-    #iterdata= [[0,0,1,fila,columnaB], [0,1,1,fila,columnaB], [1,0,1,fila,columnaB], [1,1,1,fila,columnaB]]
-    #iterdata= [[0,0,4,fila,columnaB], [1,0,2,fila,columnaB], [1,2,1,fila,columnaB], [1,3,1,fila,columnaB]]
+        iterdata.append([])
+        iterdata[i]=""
+        #Miro si és l'últim per fer més operacions o no depenent de si hi ha resto
+        if (resten !=0) and (i == workers - 1):
+            operacions_worker=resten
+        for j in range(operacions_worker):
+            if f_inici < fila:
+                if c_inici >= columnaB:
+                    #si estem aqui vol dir que hem de posar columna 0 i aumentar la fila
+                    c_inici=0
+                    f_inici=f_inici+1
+            #Si es l'ultim ha de fer les que faltin no només les necessaries
+            nom_f=filaStr + str(f_inici)
+            nom_c=colunnaStr + str(c_inici)
+            iterdata[i]=iterdata[i] + str(nom_f) + " " + str(nom_c) + " "
+            c_inici = c_inici + 1 
+        
+    print(iterdata)
+    print(len(iterdata))
 
     #Fem la crida al map_reduce
     start_time = time.time()
