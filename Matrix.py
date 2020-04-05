@@ -5,13 +5,21 @@ import time
 import math
 from random import randint
 
-#ESPAI VARIABLES GLOBALS
-fila=2
-columna=2
-columnaB=4
-workers=2
-filaStr="Fila_"
-colunnaStr="Columna_"
+# ESPAI VARIABLES GLOBALS
+fila = 3
+columna = 3
+columnaB = 3
+workers = 9
+# Tamany maxim que tindra un fitxer que conte files de A (No pot ser major que columnes / workers)
+divisioFil = 1
+# Tamany maxim que tindra un fitxer que conte columnes de B (No pot ser major que el numero de Files)
+divisioCol = 1
+SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
+SubMB = 0  # Numero de Submatrius B que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
+filaStr = "Fila_"
+colunnaStr = "Columna_"
+nom_cos = 'ramonsd'
+
 
 def inicialitzacio(files, columnes, columnesB, ibm_cos):
 

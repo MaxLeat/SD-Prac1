@@ -4,12 +4,12 @@ import pickle
 from random import randint
 
 # Columnes de a = files de b
-fila = 23
-columna = 23
+fila = 5
+columna = 5
 # Tamany maxim que tindra un fitxer que conte files de A (No pot ser major que columnes / workers)
-divisioFil = 3
+divisioFil = 2
 # Tamany maxim que tindra un fitxer que conte columnes de B (No pot ser major que el numero de Files)
-divisioCol = 3
+divisioCol = 2
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 SubMB = 0  # Numero de Submatrius B que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 filaStr = "Fila_"
