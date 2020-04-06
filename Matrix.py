@@ -7,11 +7,11 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 #Dimensions de les matrius
-fila = 12  # = m
-columna = 9 # = n
-columnaB = 7 # = l
+fila = 3  # = m
+columna = 2 # = n
+columnaB = 3 # = l
 #Numero de workers
-workers = 4
+workers = 2
 #Seleccio d'exercici
 #Si exercici es = 1: Es calcularan automaticament les divisions de les submatrius
 #Si exercici es = 2: S'utilitzaran els valors introduits a les variables globals
@@ -103,7 +103,7 @@ def reduce_function(results, ibm_cos):
             for i in range(len(results[w][o])):
                 # Recorrem la cordenada j
                 for j in range(len(results[w][o][i])):
-                    if(x >= fila) or (y >= columnaB):
+                    if(x >= fila) and (y >= columnaB):
                         C[i+x][j+y] = results[w][o][i][j]
 
             # Amb aixo controlem on coloquem els numeros a la matriu resultant ja que sino els posariem desordenats
