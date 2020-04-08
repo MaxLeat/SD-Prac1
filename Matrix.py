@@ -1,3 +1,4 @@
+from cos_backend import COSBackend
 import numpy as np
 import pywren_ibm_cloud as pywren
 import pickle
@@ -7,26 +8,25 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 # Dimensions de les matrius
-fila = 1000  # = m
-columna = 1000  # = n
-columnaB = 1000  # = l
+fila = 10  # = m
+columna = 10  # = n
+columnaB = 10  # = l
 # Numero de workers
-workers = 2
+workers = 5
 # Seleccio d'exercici
 # Si exercici es = 1: Es calcularan automaticament els workers necesaris
 # Si exercici es = 2: S'utilitzaran els valors introduits a les variables globals
 exercici = 1
 # Tamany maxim que tindra un fitxer que conte files de A (No pot ser major que columnes / workers)
-divisioFil = 4
 # Tamany maxim que tindra un fitxer que conte columnes de B (No pot ser major que el numero de Files)
-divisioCol = 1
+divisio = 14
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 SubMB = 0  # Numero de Submatrius B que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 # Variables Auxiliars per creacio de fitxers
 filaStr = "Fila_"
 colunnaStr = "Columna_"
 # Nom del cos que s'utilitzara
-nom_cos = 'ramonsd'
+nom_cos = 'sdurv'
 
 
 def inicialitzacio(files, columnes, columnesB, ibm_cos):
@@ -49,21 +49,26 @@ def inicialitzacio(files, columnes, columnesB, ibm_cos):
     # Per cada fila de A es crea un fitxer
     for i in range(SubMA):
          # Si la matriu no esta buida
-        if np.size(A[i*divisioFil:((i+1)*divisioFil)]) != 0:
-            fitxer = filaStr + str(i*divisioFil)
+        if np.size(A[i*divisio:((i+1)*divisio)]) != 0:
+            fitxer = filaStr + str(i*divisio)
             ibm_cos.put_object(Bucket=nom_cos, Key=fitxer,
-                            Body=pickle.dumps(A[i*divisioFil:((i+1)*divisioFil)], pickle.HIGHEST_PROTOCOL))
+                            Body=pickle.dumps(A[i*divisio:((i+1)*divisio)], pickle.HIGHEST_PROTOCOL))
 
     # Per cada columna de B es crea un fitxer
     for i in range(SubMB):
-        if np.size(B[:, i*divisioCol:((i+1)*divisioCol)]) != 0:
-            fitxer = colunnaStr + str(i*divisioCol)
+        if np.size(B[:, i*divisio:((i+1)*divisio)]) != 0:
+            fitxer = colunnaStr + str(i*divisio)
             ibm_cos.put_object(Bucket=nom_cos, Key=fitxer,
-                            Body=pickle.dumps(B[:, i*divisioCol:((i+1)*divisioCol)], pickle.HIGHEST_PROTOCOL))
+                            Body=pickle.dumps(B[:, i*divisio:((i+1)*divisio)], pickle.HIGHEST_PROTOCOL))
 
+    
     # Pujem la matriu C per omplir-la al reduce
     ibm_cos.put_object(Bucket=nom_cos, Key='MatriuC.txt',
                        Body=pickle.dumps(C, pickle.HIGHEST_PROTOCOL))
+    ibm_cos.put_object(Bucket=nom_cos, Key='MatriuA.txt',
+                       Body=pickle.dumps(A, pickle.HIGHEST_PROTOCOL))
+    ibm_cos.put_object(Bucket=nom_cos, Key='MatriuB.txt',
+                       Body=pickle.dumps(B, pickle.HIGHEST_PROTOCOL))
 
 
 def matrix_mul(fitxers, ibm_cos):
@@ -105,14 +110,13 @@ def reduce_function(results, ibm_cos):
             for i in range(len(results[w][o])):
                 # Recorrem la cordenada j
                 for j in range(len(results[w][o][i])):
-                    if(x >= fila) and (y >= columnaB):
-                        C[i+x][j+y] = results[w][o][i][j]
+                    C[i+x][j+y] = results[w][o][i][j]
 
             # Amb aixo controlem on coloquem els numeros a la matriu resultant ja que sino els posariem desordenats
-            y = divisioCol + y
+            y = divisio + y
             if(y >= columna):
-                x = divisioFil + x
-                if(x >= divisioFil):
+                x = divisio + x
+                if(x >= divisio):
                     y = 0
     return C
 
@@ -124,26 +128,23 @@ if __name__ == '__main__':
         exercici = 1
     if(exercici == 2):
         # Comprovem el valor de les variables referents a la creacio de submatrius Exercici 2
-        if divisioFil > (fila/workers):
-            divisioFil = math.ceil(fila/workers)
-        if divisioFil <= 0:
-            divisioFil = 1
-        if divisioCol > columna:
-            divisioCol = columna
-        if divisioCol <= 0:
-            divisioCol = 1
+        if divisio > (fila/workers):
+            divisio = math.ceil(fila/workers)
+        if divisio > columna:
+            divisio = columna
+        if divisio <= 0:
+            divisio = 1
 
     if(exercici == 1):
         # Calculs exercici 1
-        workers=math.ceil(fila/divisioFil)
-        divisioCol=divisioFil
+        workers=math.ceil(fila/divisio)
         print(workers)
     
     if(workers>100):
         workers=100
     # Calculem el numero de divisions que obtindrem
-    SubMA = math.ceil(fila/divisioFil)
-    SubMB = math.ceil(columnaB/divisioCol)
+    SubMA = math.ceil(fila/divisio)
+    SubMB = math.ceil(columnaB/divisio)
     operacions = SubMA * SubMB
     # Fem la comprovació de que els workers que s'han posat siguin acceptables
     if (workers <= operacions) and (workers > 0):
@@ -158,8 +159,8 @@ if __name__ == '__main__':
         print("Columnes Matriu A :     " + str(columna))
         print("Files Matriu B :        " + str(columna))
         print("Columnes Matriu B :     " + str(columnaB))
-        print("Files per divisio :     " + str(divisioFil))
-        print("Columnes per divisio :  " + str(divisioCol))
+        print("Files per divisio :     " + str(divisio))
+        print("Columnes per divisio :  " + str(divisio))
         print("Workers :               " + str(workers))
         print("Operacions totals :     " + str(operacions))
         print("Operacions per Worker : " + str(operacions_worker))
@@ -167,7 +168,14 @@ if __name__ == '__main__':
         print("Submatrius B :          " + str(SubMB))
 
         # Inicialitzem les matrius
-        pw.call_async(inicialitzacio, [fila, columna, columnaB])
+        futures = pw.call_async(inicialitzacio, [fila, columna, columnaB])
+        pw.wait(futures)
+        cos = COSBackend()  
+        A = cos.get_object('sdurv', 'MatriuA.txt')
+        B = cos.get_object('sdurv', 'MatriuB.txt')
+        A = pickle.loads(A)
+        B = pickle.loads(B)
+    
         iterdata = []
         f_inici = 0
         c_inici = 0
@@ -185,15 +193,14 @@ if __name__ == '__main__':
                     if c_inici >= columnaB:
                         # Com hem arribat al final baixem una fila
                         c_inici = 0
-                        f_inici = f_inici+divisioFil
+                        f_inici = f_inici+divisio
                 # Anem escribint les operacions que fara cada worker indicant quina fila i columna han d'operar
                 nom_f = filaStr + str(f_inici)
                 nom_c = colunnaStr + str(c_inici)
                 iterdata[i] = iterdata[i] + str(nom_f) + " " + str(nom_c) + " "
-                c_inici = c_inici + divisioCol
+                c_inici = c_inici + divisio
 
         #print(iterdata)
-
         # Iniciem el timer
         start_time = time.time()
         # Fem la crida al map_reduce
@@ -201,6 +208,13 @@ if __name__ == '__main__':
         pw.wait(futures)
         # Calculem el temps que ha passat
         elapsed_time = time.time() - start_time
+        print('Matriu A:')
+        print()
+        print(A)
+        print()
+        print('Matriu B:')
+        print()
+        print(B)
         print(pw.get_result())
         print()
         print("EL TEMPS QUE HA TRIGAT ES:")
