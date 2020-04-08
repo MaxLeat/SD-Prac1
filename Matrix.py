@@ -139,8 +139,7 @@ if __name__ == '__main__':
         divisioCol=divisioFil
         print(workers)
     
-    if(workers>100):
-        workers=100
+    if(workers>100)
     # Calculem el numero de divisions que obtindrem
     SubMA = math.ceil(fila/divisioFil)
     SubMB = math.ceil(columnaB/divisioCol)
