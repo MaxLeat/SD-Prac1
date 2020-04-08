@@ -7,9 +7,9 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 # Dimensions de les matrius
-fila = 12 # = m
-columna = 9  # = n
-columnaB = 7  # = l
+fila = 1000  # = m
+columna = 1000  # = n
+columnaB = 1000  # = l
 # Numero de workers
 workers = 2
 # Seleccio d'exercici
@@ -17,7 +17,7 @@ workers = 2
 # Si exercici es = 2: S'utilitzaran els valors introduits a les variables globals
 exercici = 1
 # Tamany maxim que tindra un fitxer que conte files de A (No pot ser major que columnes / workers)
-divisioFil = 2
+divisioFil = 4
 # Tamany maxim que tindra un fitxer que conte columnes de B (No pot ser major que el numero de Files)
 divisioCol = 1
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
@@ -48,15 +48,18 @@ def inicialitzacio(files, columnes, columnesB, ibm_cos):
 
     # Per cada fila de A es crea un fitxer
     for i in range(SubMA):
-        fitxer = filaStr + str(i*divisioFil)
-        ibm_cos.put_object(Bucket=nom_cos, Key=fitxer,
-                           Body=pickle.dumps(A[i*divisioFil:((i+1)*divisioFil)], pickle.HIGHEST_PROTOCOL))
+         # Si la matriu no esta buida
+        if np.size(A[i*divisioFil:((i+1)*divisioFil)]) != 0:
+            fitxer = filaStr + str(i*divisioFil)
+            ibm_cos.put_object(Bucket=nom_cos, Key=fitxer,
+                            Body=pickle.dumps(A[i*divisioFil:((i+1)*divisioFil)], pickle.HIGHEST_PROTOCOL))
 
     # Per cada columna de B es crea un fitxer
     for i in range(SubMB):
-        fitxer = colunnaStr + str(i*divisioCol)
-        ibm_cos.put_object(Bucket=nom_cos, Key=fitxer,
-                           Body=pickle.dumps(B[:, i*divisioCol:((i+1)*divisioCol)], pickle.HIGHEST_PROTOCOL))
+        if np.size(B[:, i*divisioCol:((i+1)*divisioCol)]) != 0:
+            fitxer = colunnaStr + str(i*divisioCol)
+            ibm_cos.put_object(Bucket=nom_cos, Key=fitxer,
+                            Body=pickle.dumps(B[:, i*divisioCol:((i+1)*divisioCol)], pickle.HIGHEST_PROTOCOL))
 
     # Pujem la matriu C per omplir-la al reduce
     ibm_cos.put_object(Bucket=nom_cos, Key='MatriuC.txt',
@@ -135,6 +138,9 @@ if __name__ == '__main__':
         workers=math.ceil(fila/divisioFil)
         divisioCol=divisioFil
         print(workers)
+    
+    if(workers>100):
+        workers=100
     # Calculem el numero de divisions que obtindrem
     SubMA = math.ceil(fila/divisioFil)
     SubMB = math.ceil(columnaB/divisioCol)
@@ -186,7 +192,7 @@ if __name__ == '__main__':
                 iterdata[i] = iterdata[i] + str(nom_f) + " " + str(nom_c) + " "
                 c_inici = c_inici + divisioCol
 
-        print(iterdata)
+        #print(iterdata)
 
         # Iniciem el timer
         start_time = time.time()
@@ -198,6 +204,6 @@ if __name__ == '__main__':
         print(pw.get_result())
         print()
         print("EL TEMPS QUE HA TRIGAT ES:")
-        print(elapsed_time)
+        print(elapsed_time)        
     else:
         print("ERROR: NUMERO DE WORKERS NO PERMÉS, HA DE SER SUPERIOR 0 I INFERIOR A " + str(operacions+1))
