@@ -17,7 +17,7 @@ workers = 2
 # Si exercici es = 2: S'utilitzaran els valors introduits a les variables globals
 exercici = 1
 # Tamany maxim que tindra un fitxer que conte files de A (No pot ser major que columnes / workers)
-divisioFil = 4
+divisioFil = 3
 # Tamany maxim que tindra un fitxer que conte columnes de B (No pot ser major que el numero de Files)
 divisioCol = 1
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
@@ -139,7 +139,8 @@ if __name__ == '__main__':
         divisioCol=divisioFil
         print(workers)
     
-    if(workers>100)
+    if(workers>100):
+        workers=100
     # Calculem el numero de divisions que obtindrem
     SubMA = math.ceil(fila/divisioFil)
     SubMB = math.ceil(columnaB/divisioCol)
