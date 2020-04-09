@@ -8,9 +8,9 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 # Dimensions de les matrius
-fila = 10  # = m
-columna = 10  # = n
-columnaB = 10  # = l
+fila = 3 # = m
+columna = 3  # = n
+columnaB = 3      # = l
 # Numero de workers
 workers = 5
 # Seleccio d'exercici
@@ -19,7 +19,7 @@ workers = 5
 exercici = 1
 # Tamany maxim que tindra un fitxer que conte files de A (No pot ser major que columnes / workers)
 # Tamany maxim que tindra un fitxer que conte columnes de B (No pot ser major que el numero de Files)
-divisio = 14
+divisio = 1
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 SubMB = 0  # Numero de Submatrius B que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 # Variables Auxiliars per creacio de fitxers
@@ -110,11 +110,12 @@ def reduce_function(results, ibm_cos):
             for i in range(len(results[w][o])):
                 # Recorrem la cordenada j
                 for j in range(len(results[w][o][i])):
-                    C[i+x][j+y] = results[w][o][i][j]
-
+                    if(x+i < fila) and (y+j < columnaB):    
+                        C[i+x][j+y] = results[w][o][i][j]
+                        
             # Amb aixo controlem on coloquem els numeros a la matriu resultant ja que sino els posariem desordenats
             y = divisio + y
-            if(y >= columna):
+            if(y >= columnaB):
                 x = divisio + x
                 if(x >= divisio):
                     y = 0
@@ -140,7 +141,7 @@ if __name__ == '__main__':
         workers=math.ceil(fila/divisio)
         print(workers)
     
-    if(workers>100):
+    if(workers>100): 
         workers=100
     # Calculem el numero de divisions que obtindrem
     SubMA = math.ceil(fila/divisio)
@@ -154,7 +155,7 @@ if __name__ == '__main__':
         resten = operacions - (operacions_worker * workers)
 
         # Imprimim les variables amb les que treballarem per veure si s'ha hagut de corregir alguna dada
-        print("Finalment el programa funcionara amb aquestes dades: ")
+        print("Finalment el programa funcionara amb aquestes dades: ")  
         print("Files Matriu A :        " + str(fila))
         print("Columnes Matriu A :     " + str(columna))
         print("Files Matriu B :        " + str(columna))
