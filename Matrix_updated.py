@@ -16,21 +16,28 @@ workers = 5
 # Seleccio d'exercici
 # Si exercici es = 1: Es calcularan automaticament els workers necesaris
 # Si exercici es = 2: S'utilitzaran els valors introduits a les variables globals
-exercici = 1
+exercici = 2
 # Tamany maxim que tindra un fitxer que conte files de A (No pot ser major que columnes / workers)
 # Tamany maxim que tindra un fitxer que conte columnes de B (No pot ser major que el numero de Files)
-divisio = 50
+divisio = 100
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 SubMB = 0  # Numero de Submatrius B que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 # Variables Auxiliars per creacio de fitxers
 filaStr = "Fila_"
 colunnaStr = "Columna_"
+workerStr = "Worker_"
 # Nom del cos que s'utilitzara
 nom_cos = 'sdurv'
+operacions_worker = 0
+resten = 0
 
 
 def inicialitzacio(files, columnes, columnesB, ibm_cos):
 
+    fitxers = dict()
+    SubMA = math.ceil(fila/divisio)
+    SubMB = math.ceil(columnaB/divisio)
+    operacions = SubMA * SubMB
    # Columnes de a = files de b
    # Creem unes matrius random i les omplim un altre cop (perque el random.ranndint no va bé)
     A = np.random.randint(10, size=(files, columnes))
@@ -51,15 +58,48 @@ def inicialitzacio(files, columnes, columnesB, ibm_cos):
         # Si la matriu no esta buida
         if np.size(A[i*divisio:((i+1)*divisio)]) != 0:
             fitxer = filaStr + str(i*divisio)
-            ibm_cos.put_object(Bucket=nom_cos, Key=fitxer,
-                               Body=pickle.dumps(A[i*divisio:((i+1)*divisio)], pickle.HIGHEST_PROTOCOL))
+            matriu= A[i*divisio:((i+1)*divisio)]
+            fitxers.update({fitxer:matriu})
 
     # Per cada columna de B es crea un fitxer
     for i in range(SubMB):
         if np.size(B[:, i*divisio:((i+1)*divisio)]) != 0:
             fitxer = colunnaStr + str(i*divisio)
-            ibm_cos.put_object(Bucket=nom_cos, Key=fitxer,
-                               Body=pickle.dumps(B[:, i*divisio:((i+1)*divisio)], pickle.HIGHEST_PROTOCOL))
+            matriu = B[:, i*divisio:((i+1)*divisio)]
+            fitxers.update({fitxer:matriu})
+
+   
+
+     # Calculem les operacions que haura de fer cada worker
+    operacions_worker = operacions // workers
+    # En cas de que no fos una divisio exacte, guardem el numero d'operacions extra
+    resten = operacions - (operacions_worker * workers)
+    f_inici = 0
+    c_inici = 0
+    for i in range(workers):
+        data = []
+        # Si hem acabat les operacions, coloquem les sobrants, (Si n'hi ha) Al ultim worker
+        if (resten != 0) and (i == workers - 1):
+            operacions_worker = resten + operacions_worker
+        # Per cada worker li
+        for j in range(operacions_worker):
+            if f_inici < fila:
+                # Mirem si hem arriba al final de la fila
+                if c_inici >= columnaB:
+                    # Com hem arribat al final baixem una fila
+                    c_inici = 0
+                    f_inici = f_inici+divisio
+            # Anem escribint les operacions que fara cada worker indicant quina fila i columna han d'operar
+            nom_f = filaStr + str(f_inici)
+            nom_c = colunnaStr + str(c_inici)
+            data.append(fitxers.get(nom_f))
+            data.append(fitxers.get(nom_c))
+            c_inici = c_inici + divisio
+        #Pujem la data amb el nom de Worker_x
+        fitxer = workerStr + str(i)
+        ibm_cos.put_object(Bucket=nom_cos, Key=fitxer,
+                       Body=pickle.dumps(data, pickle.HIGHEST_PROTOCOL))
+
 
     # Pujem la matriu C per omplir-la al reduce
     ibm_cos.put_object(Bucket=nom_cos, Key='MatriuC.txt',
@@ -74,29 +114,18 @@ def matrix_mul(fitxers, ibm_cos):
 
     resultats = []
     i = 0
-    # A fitxers tenim els noms dels fitxer que hem de multiplicar entre si
-    fit = fitxers.split()
-    num_strings = len(fit)
+    W_s = ibm_cos.get_object(Bucket=nom_cos, Key=fitxers)['Body'].read()
+    W = pickle.loads(W_s)
+    num_strings = len(W)
     fit_anteriorA=""
     fit_anteriorB=""
+    
     while i < num_strings:
-        # Anem Agafant els fitxers de dos en dos
-        fitxerA = fit[i]
-        fitxerB = fit[i+1]
-        # Descarreguem les matrius corresponents
-        if (fit_anteriorA != fitxerA):
-            A_s = ibm_cos.get_object(Bucket=nom_cos, Key=fitxerA)['Body'].read()
-            A = pickle.loads(A_s)
-        if (fit_anteriorB != fitxerB):
-            B_s = ibm_cos.get_object(Bucket=nom_cos, Key=fitxerB)['Body'].read()
-            B = pickle.loads(B_s)
         # Multipliquem les dues matrius
-        C = A.dot(B)
+        C = W[i].dot(W[i+1])
         # Guardem el resultat
         resultats.append(C)
         i = i+2
-        fit_anteriorA=fitxerA
-        fit_anteriorB=fitxerB
 
     return resultats
 
@@ -127,7 +156,6 @@ def reduce_function(results, ibm_cos):
 
 
 if __name__ == '__main__':
-    resultats = [0, 0, 0, 0, 0]
     pw = pywren.ibm_cf_executor()
     # Comprovem que hem escollit un exerci correcte
     if(exercici > 1) and (exercici < 2):
@@ -155,80 +183,58 @@ if __name__ == '__main__':
     operacions = SubMA * SubMB
     # Fem la comprovació de que els workers que s'han posat siguin acceptables
     if (workers <= operacions) and (workers > 0):
-        for cosas in range(5):
-            # Calculem les operacions que haura de fer cada worker
-            operacions_worker = operacions // workers
-            # En cas de que no fos una divisio exacte, guardem el numero d'operacions extra
-            resten = operacions - (operacions_worker * workers)
 
-            # Imprimim les variables amb les que treballarem per veure si s'ha hagut de corregir alguna dada
-            print("Finalment el programa funcionara amb aquestes dades: ")
-            print("Files Matriu A :        " + str(fila))
-            print("Columnes Matriu A :     " + str(columna))
-            print("Files Matriu B :        " + str(columna))
-            print("Columnes Matriu B :     " + str(columnaB))
-            print("Files per divisio :     " + str(divisio))
-            print("Columnes per divisio :  " + str(divisio))
-            print("Workers :               " + str(workers))
-            print("Operacions totals :     " + str(operacions))
-            print("Operacions per Worker : " + str(operacions_worker))
-            print("Submatrius A :          " + str(SubMA))
-            print("Submatrius B :          " + str(SubMB))
+        # Calculem les operacions que haura de fer cada worker
+        operacions_worker = operacions // workers
+        # En cas de que no fos una divisio exacte, guardem el numero d'operacions extra
+        resten = operacions - (operacions_worker * workers)
 
-            # Inicialitzem les matrius
-            futures = pw.call_async(inicialitzacio, [fila, columna, columnaB])
-            pw.wait(futures)
-            cos = COSBackend()
-            A = cos.get_object('sdurv', 'MatriuA.txt')
-            B = cos.get_object('sdurv', 'MatriuB.txt')
-            A = pickle.loads(A)
-            B = pickle.loads(B)
+        # Imprimim les variables amb les que treballarem per veure si s'ha hagut de corregir alguna dada
+        print("Finalment el programa funcionara amb aquestes dades: ")
+        print("Files Matriu A :        " + str(fila))
+        print("Columnes Matriu A :     " + str(columna))
+        print("Files Matriu B :        " + str(columna))
+        print("Columnes Matriu B :     " + str(columnaB))
+        print("Files per divisio :     " + str(divisio))
+        print("Columnes per divisio :  " + str(divisio))
+        print("Workers :               " + str(workers))
+        print("Operacions totals :     " + str(operacions))
+        print("Operacions per Worker : " + str(operacions_worker))
+        print("Submatrius A :          " + str(SubMA))
+        print("Submatrius B :          " + str(SubMB))
 
-            iterdata = []
-            f_inici = 0
-            c_inici = 0
-            # Creem les dades per passar al map_reduce
-            for i in range(workers):
-                iterdata.append([])
-                iterdata[i] = ""
-                # Si hem acabat les operacions, coloquem les sobrants, (Si n'hi ha) Al ultim worker
-                if (resten != 0) and (i == workers - 1):
-                    operacions_worker = resten + operacions_worker
-                # Per cada worker li
-                for j in range(operacions_worker):
-                    if f_inici < fila:
-                        # Mirem si hem arriba al final de la fila
-                        if c_inici >= columnaB:
-                            # Com hem arribat al final baixem una fila
-                            c_inici = 0
-                            f_inici = f_inici+divisio
-                    # Anem escribint les operacions que fara cada worker indicant quina fila i columna han d'operar
-                    nom_f = filaStr + str(f_inici)
-                    nom_c = colunnaStr + str(c_inici)
-                    iterdata[i] = iterdata[i] + \
-                        str(nom_f) + " " + str(nom_c) + " "
-                    c_inici = c_inici + divisio
+        # Inicialitzem les matrius
+        futures = pw.call_async(inicialitzacio, [fila, columna, columnaB])
+        pw.wait(futures)
+        cos = COSBackend()
+        A = cos.get_object('sdurv', 'MatriuA.txt')
+        B = cos.get_object('sdurv', 'MatriuB.txt')
+        A = pickle.loads(A)
+        B = pickle.loads(B)
 
-            # print(iterdata)
-            # Iniciem el timer
-            start_time = time.time()
-            # Fem la crida al map_reduce
-            futures = pw.map_reduce(matrix_mul, iterdata, reduce_function)
-            pw.wait(futures)
-            # Calculem el temps que ha passat
-            elapsed_time = time.time() - start_time
-            print('Matriu A:')
-            print()
-            print(A)
-            print()
-            print('Matriu B:')
-            print()
-            print(B)
-            print(pw.get_result())
-            print()
-            print("EL TEMPS QUE HA TRIGAT ES:")
-            print(elapsed_time)
-            resultats[cosas] = elapsed_time
+        iterdata = []
+        nom=""
+        for i in range(workers):
+            nom = workerStr + str(i)
+            iterdata.append(nom)
+        
+        # Iniciem el timer
+        start_time = time.time()
+        # Fem la crida al map_reduce
+        futures = pw.map_reduce(matrix_mul, iterdata, reduce_function)
+        pw.wait(futures)
+        # Calculem el temps que ha passat
+        elapsed_time = time.time() - start_time
+        print('Matriu A:')
+        print()
+        print(A)
+        print()
+        print('Matriu B:')
+        print()
+        print(B)
+        print(pw.get_result())
+        print()
+        print("EL TEMPS QUE HA TRIGAT ES:")
+        print(elapsed_time)
     else:
         print("ERROR: NUMERO DE WORKERS NO PERMÉS, HA DE SER SUPERIOR 0 I INFERIOR A " + str(operacions+1))
-    print(resultats)
