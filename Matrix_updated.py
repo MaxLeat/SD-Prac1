@@ -8,16 +8,16 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 # Dimensions de les matrius
-fila = 700  # = m
-columna = 700  # = n
-columnaB = 700      # = l
+fila = 10  # = m
+columna = 10  # = n
+columnaB = 10      # = l
 # Seleccio d'exercici
 # Si exercici es = 1: Es calcularan automaticament els workers necesaris
 # Si exercici es = 2: S'utilitzaran els valors introduits a les variables globals
 exercici = 2
 # Tamany maxim que tindra un fitxer que conte files de A (No pot ser major que columnes / workers)
 # Tamany maxim que tindra un fitxer que conte columnes de B (No pot ser major que el numero de Files)
-divisio =50
+divisio = 5
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 SubMB = 0  # Numero de Submatrius B que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 # Variables Auxiliars per creacio de fitxers
@@ -25,7 +25,7 @@ filaStr = "Fila_"
 colunnaStr = "Columna_"
 workerStr = "Worker_"
 # Nom del cos que s'utilitzara
-nom_cos = 'sdurv'
+nom_cos = 'ramonsd'
 
 
 def inicialitzacio(files, columnes, columnesB, operacions_worker, workers, resten, ibm_cos):
@@ -54,21 +54,23 @@ def inicialitzacio(files, columnes, columnesB, operacions_worker, workers, reste
         # Si la matriu no esta buida
         if np.size(A[i*divisio:((i+1)*divisio)]) != 0:
             fitxer = filaStr + str(i*divisio)
-            matriu= A[i*divisio:((i+1)*divisio)]
-            fitxers.update({fitxer:matriu})
+            if (fitxer not in fitxers):
+                matriu = A[i*divisio:((i+1)*divisio)]
+                fitxers.update({fitxer: matriu})
 
     # Per cada columna de B es crea un fitxer
     for i in range(SubMB):
         if np.size(B[:, i*divisio:((i+1)*divisio)]) != 0:
             fitxer = colunnaStr + str(i*divisio)
-            matriu = B[:, i*divisio:((i+1)*divisio)]
-            fitxers.update({fitxer:matriu})
+            if (fitxer not in fitxers):
+                matriu = B[:, i*divisio:((i+1)*divisio)]
+                fitxers.update({fitxer: matriu})
 
     f_inici = 0
     c_inici = 0
 
     for i in range(workers):
-        data = []
+        data = dict()
         # Si hem acabat les operacions, coloquem les sobrants, (Si n'hi ha) Al ultim worker
         if (resten != 0) and (i == workers - 1):
             operacions_worker = resten + operacions_worker
@@ -83,14 +85,13 @@ def inicialitzacio(files, columnes, columnesB, operacions_worker, workers, reste
             # Anem escribint les operacions que fara cada worker indicant quina fila i columna han d'operar
             nom_f = filaStr + str(f_inici)
             nom_c = colunnaStr + str(c_inici)
-            data.append(fitxers.get(nom_f))
-            data.append(fitxers.get(nom_c))
+            data.update({nom_f: fitxers.get(nom_f)})
+            data.update({nom_c: fitxers.get(nom_c)})
             c_inici = c_inici + divisio
-        #Pujem la data amb el nom de Worker_x
+        # Pujem la data amb el nom de Worker_x
         fitxer = workerStr + str(i)
         ibm_cos.put_object(Bucket=nom_cos, Key=fitxer,
-                       Body=pickle.dumps(data, pickle.HIGHEST_PROTOCOL))
-
+                           Body=pickle.dumps(data, pickle.HIGHEST_PROTOCOL))
 
     # Pujem la matriu C per omplir-la al reduce
     ibm_cos.put_object(Bucket=nom_cos, Key='MatriuC.txt',
@@ -105,15 +106,14 @@ def matrix_mul(fitxers, ibm_cos):
 
     resultats = []
     i = 0
-    W_s = ibm_cos.get_object(Bucket=nom_cos, Key=fitxers)['Body'].read()
+    fit = fitxers.split()
+    num_strings = len(fit)-1
+    W_s = ibm_cos.get_object(Bucket=nom_cos, Key=fit[0])['Body'].read()
     W = pickle.loads(W_s)
-    num_strings = len(W)
-    fit_anteriorA=""
-    fit_anteriorB=""
-    
+    i=i+1
     while i < num_strings:
         # Multipliquem les dues matrius
-        C = W[i].dot(W[i+1])
+        C = W[fit[i]].dot(W[fit[i+1]])
         # Guardem el resultat
         resultats.append(C)
         i = i+2
@@ -194,9 +194,6 @@ if __name__ == '__main__':
         print("Submatrius A :          " + str(SubMA))
         print("Submatrius B :          " + str(SubMB))
 
-        # Inicialitzem les matrius
-        futures = pw.call_async(inicialitzacio, [fila, columna, columnaB, operacions_worker, workers, resten])
-        pw.wait(futures)
         cos = COSBackend()
         A = cos.get_object('sdurv', 'MatriuA.txt')
         B = cos.get_object('sdurv', 'MatriuB.txt')
@@ -204,11 +201,35 @@ if __name__ == '__main__':
         B = pickle.loads(B)
 
         iterdata = []
-        nom=""
+        f_inici = 0
+        c_inici = 0
         for i in range(workers):
-            nom = workerStr + str(i)
-            iterdata.append(nom)
-        
+            iterdata.append([])
+            iterdata[i] = ""
+            fit_worker = workerStr + str(i)
+            iterdata[i] = iterdata[i] + fit_worker + " "
+            # Si hem acabat les operacions, coloquem les sobrants, (Si n'hi ha) Al ultim worker
+            if (resten != 0) and (i == workers - 1):
+                operacions_worker = resten + operacions_worker
+            # Per cada worker li
+            for j in range(operacions_worker):
+                if f_inici < fila:
+                    # Mirem si hem arriba al final de la fila
+                    if c_inici >= columnaB:
+                        # Com hem arribat al final baixem una fila
+                        c_inici = 0
+                        f_inici = f_inici+divisio
+                # Anem escribint les operacions que fara cada worker indicant quina fila i columna han d'operar
+                nom_f = filaStr + str(f_inici)
+                nom_c = colunnaStr + str(c_inici)
+                iterdata[i] = iterdata[i] + str(nom_f) + " " + str(nom_c) + " "
+                c_inici = c_inici + divisio
+
+        # print(iterdata)
+        # Inicialitzem les matrius
+        futures = pw.call_async(
+            inicialitzacio, [fila, columna, columnaB, operacions_worker, workers, resten])
+        pw.wait(futures)
         # Iniciem el timer
         start_time = time.time()
         # Fem la crida al map_reduce
