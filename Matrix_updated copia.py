@@ -8,11 +8,11 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 # Dimensions de les matrius
-fila = 100  # = m
-columna = 100  # = n
-columnaB = 100      # = l
+fila = 1000  # = m
+columna = 1000  # = n
+columnaB = 1000  # = l
 # Tamany de les divisions de les matrius
-divisio = 50
+divisio = 1000
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 SubMB = 0  # Numero de Submatrius B que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 # Variables Auxiliars per creacio de fitxers
@@ -145,14 +145,17 @@ def reduce_function(results, ibm_cos):
 
 
 if __name__ == '__main__':
+    resultats = [0, 0, 0, 0, 0]
     pw = pywren.ibm_cf_executor()
-   #Calculem els workers
+    # Comprovem que hem escollit un exerci correcte
+   
     workers = math.ceil(fila/divisio)
     # Comprovem el valor de les variables referents a la creacio de submatrius Exercici 2
     if divisio > (fila/workers):
         divisio = math.ceil(fila/workers)
     if divisio <= 0:
         divisio = 1
+
     if(workers > 100):
         workers = 100
     # Calculem el numero de divisions que obtindrem
@@ -161,78 +164,80 @@ if __name__ == '__main__':
     operacions = SubMA * SubMB
     # Fem la comprovació de que els workers que s'han posat siguin acceptables
     if (workers <= operacions) and (workers > 0):
+        for cosas in range(5):
+            # Calculem les operacions que haura de fer cada worker
+            operacions_worker = operacions // workers
+            # En cas de que no fos una divisio exacte, guardem el numero d'operacions extra
+            resten = operacions - (operacions_worker * workers)
 
-        # Calculem les operacions que haura de fer cada worker
-        operacions_worker = operacions // workers
-        # En cas de que no fos una divisio exacte, guardem el numero d'operacions extra
-        resten = operacions - (operacions_worker * workers)
+            # Imprimim les variables amb les que treballarem per veure si s'ha hagut de corregir alguna dada
+            print("Finalment el programa funcionara amb aquestes dades: ")
+            print("Files Matriu A :        " + str(fila))
+            print("Columnes Matriu A :     " + str(columna))
+            print("Files Matriu B :        " + str(columna))
+            print("Columnes Matriu B :     " + str(columnaB))
+            print("Files per divisio :     " + str(divisio))
+            print("Columnes per divisio :  " + str(divisio))
+            print("Workers :               " + str(workers))
+            print("Operacions totals :     " + str(operacions))
+            print("Operacions per Worker : " + str(operacions_worker))
+            print("Submatrius A :          " + str(SubMA))
+            print("Submatrius B :          " + str(SubMB))
 
-        # Imprimim les variables amb les que treballarem per veure si s'ha hagut de corregir alguna dada
-        print("Finalment el programa funcionara amb aquestes dades: ")
-        print("Files Matriu A :        " + str(fila))
-        print("Columnes Matriu A :     " + str(columna))
-        print("Files Matriu B :        " + str(columna))
-        print("Columnes Matriu B :     " + str(columnaB))
-        print("Files per divisio :     " + str(divisio))
-        print("Columnes per divisio :  " + str(divisio))
-        print("Workers :               " + str(workers))
-        print("Operacions totals :     " + str(operacions))
-        print("Operacions per Worker : " + str(operacions_worker))
-        print("Submatrius A :          " + str(SubMA))
-        print("Submatrius B :          " + str(SubMB))
+            iterdata = []
+            f_inici = 0
+            c_inici = 0
+            for i in range(workers):
+                iterdata.append([])
+                iterdata[i] = ""
+                fit_worker = workerStr + str(i)
+                iterdata[i] = iterdata[i] + fit_worker + " "
+                # Si hem acabat les operacions, coloquem les sobrants, (Si n'hi ha) Al ultim worker
+                if (resten != 0) and (i == workers - 1):
+                    operacions_worker = resten + operacions_worker
+                # Per cada worker li
+                for j in range(operacions_worker):
+                    if f_inici < fila:
+                        # Mirem si hem arriba al final de la fila
+                        if c_inici >= columnaB:
+                            # Com hem arribat al final baixem una fila
+                            c_inici = 0
+                            f_inici = f_inici+divisio
+                    # Anem escribint les operacions que fara cada worker indicant quina fila i columna han d'operar
+                    nom_f = filaStr + str(f_inici)
+                    nom_c = colunnaStr + str(c_inici)
+                    iterdata[i] = iterdata[i] + str(nom_f) + " " + str(nom_c) + " "
+                    c_inici = c_inici + divisio
 
-        iterdata = []
-        f_inici = 0
-        c_inici = 0
-        for i in range(workers):
-            iterdata.append([])
-            iterdata[i] = ""
-            fit_worker = workerStr + str(i)
-            iterdata[i] = iterdata[i] + fit_worker + " "
-            # Si hem acabat les operacions, coloquem les sobrants, (Si n'hi ha) Al ultim worker
-            if (resten != 0) and (i == workers - 1):
-                operacions_worker = resten + operacions_worker
-            # Per cada operació que ha de fer el worker 
-            for j in range(operacions_worker):
-                if f_inici < fila:
-                    # Mirem si hem arriba al final de la fila
-                    if c_inici >= columnaB:
-                        # Com hem arribat al final baixem una fila
-                        c_inici = 0
-                        f_inici = f_inici+divisio
-                # Anem escribint les operacions que fara cada worker indicant quina fila i columna han d'operar
-                nom_f = filaStr + str(f_inici)
-                nom_c = colunnaStr + str(c_inici)
-                iterdata[i] = iterdata[i] + str(nom_f) + " " + str(nom_c) + " "
-                c_inici = c_inici + divisio
-
-        # Inicialitzem les matrius
-        futures = pw.call_async(
-            inicialitzacio, [fila, columna, columnaB, operacions_worker, workers, resten])
-        pw.wait(futures)
-        #Esperem a que s'hagi realitzat per descarregar les matrius A i B correctes
-        cos = COSBackend()
-        A = cos.get_object(nom_cos, 'MatriuA.txt')
-        B = cos.get_object(nom_cos, 'MatriuB.txt')
-        A = pickle.loads(A)
-        B = pickle.loads(B)
-        # Iniciem el timer
-        start_time = time.time()
-        # Fem la crida al map_reduce
-        futures = pw.map_reduce(matrix_mul, iterdata, reduce_function)
-        pw.wait(futures)
-        # Calculem el temps que ha passat
-        elapsed_time = time.time() - start_time
-        print('Matriu A:')
-        print()
-        print(A)
-        print()
-        print('Matriu B:')
-        print()
-        print(B)
-        print(pw.get_result())
-        print()
-        print("EL TEMPS QUE HA TRIGAT ES:")
-        print(elapsed_time)
+            # print(iterdata)
+            # Inicialitzem les matrius
+            futures = pw.call_async(
+                inicialitzacio, [fila, columna, columnaB, operacions_worker, workers, resten])
+            pw.wait(futures)
+            cos = COSBackend()
+            A = cos.get_object(nom_cos, 'MatriuA.txt')
+            B = cos.get_object(nom_cos, 'MatriuB.txt')
+            A = pickle.loads(A)
+            B = pickle.loads(B)
+            # Iniciem el timer
+            start_time = time.time()
+            # Fem la crida al map_reduce
+            futures = pw.map_reduce(matrix_mul, iterdata, reduce_function)
+            pw.wait(futures)
+            # Calculem el temps que ha passat
+            elapsed_time = time.time() - start_time
+            print('Matriu A:')
+            print()
+            print(A)
+            print()
+            print('Matriu B:')
+            print()
+            print(B)
+            print(pw.get_result())
+            print()
+            print("EL TEMPS QUE HA TRIGAT ES:")
+            print(elapsed_time)
+            resultats[cosas] = elapsed_time
     else:
         print("ERROR: NUMERO DE WORKERS NO PERMÉS, HA DE SER SUPERIOR 0 I INFERIOR A " + str(operacions+1))
+    print(resultats)
