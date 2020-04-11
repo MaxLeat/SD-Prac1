@@ -8,18 +8,16 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 # Dimensions de les matrius
-fila = 300  # = m
-columna = 300  # = n
-columnaB = 300      # = l
-# Numero de workers
-workers = 5
+fila = 700  # = m
+columna = 700  # = n
+columnaB = 700      # = l
 # Seleccio d'exercici
 # Si exercici es = 1: Es calcularan automaticament els workers necesaris
 # Si exercici es = 2: S'utilitzaran els valors introduits a les variables globals
 exercici = 2
 # Tamany maxim que tindra un fitxer que conte files de A (No pot ser major que columnes / workers)
 # Tamany maxim que tindra un fitxer que conte columnes de B (No pot ser major que el numero de Files)
-divisio = 100
+divisio =50
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 SubMB = 0  # Numero de Submatrius B que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 # Variables Auxiliars per creacio de fitxers
@@ -28,11 +26,9 @@ colunnaStr = "Columna_"
 workerStr = "Worker_"
 # Nom del cos que s'utilitzara
 nom_cos = 'sdurv'
-operacions_worker = 0
-resten = 0
 
 
-def inicialitzacio(files, columnes, columnesB, ibm_cos):
+def inicialitzacio(files, columnes, columnesB, operacions_worker, workers, resten, ibm_cos):
 
     fitxers = dict()
     SubMA = math.ceil(fila/divisio)
@@ -68,14 +64,9 @@ def inicialitzacio(files, columnes, columnesB, ibm_cos):
             matriu = B[:, i*divisio:((i+1)*divisio)]
             fitxers.update({fitxer:matriu})
 
-   
-
-     # Calculem les operacions que haura de fer cada worker
-    operacions_worker = operacions // workers
-    # En cas de que no fos una divisio exacte, guardem el numero d'operacions extra
-    resten = operacions - (operacions_worker * workers)
     f_inici = 0
     c_inici = 0
+
     for i in range(workers):
         data = []
         # Si hem acabat les operacions, coloquem les sobrants, (Si n'hi ha) Al ultim worker
@@ -204,7 +195,7 @@ if __name__ == '__main__':
         print("Submatrius B :          " + str(SubMB))
 
         # Inicialitzem les matrius
-        futures = pw.call_async(inicialitzacio, [fila, columna, columnaB])
+        futures = pw.call_async(inicialitzacio, [fila, columna, columnaB, operacions_worker, workers, resten])
         pw.wait(futures)
         cos = COSBackend()
         A = cos.get_object('sdurv', 'MatriuA.txt')
