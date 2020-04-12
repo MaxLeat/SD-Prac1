@@ -8,9 +8,9 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 # Dimensions de les matrius
-fila = 500  # = m
-columna = 500  # = n
-columnaB = 500      # = l
+fila = 100  # = m
+columna = 100  # = n
+columnaB = 100      # = l
 # Tamany de les divisions de les matrius
 divisio = 1
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
@@ -20,7 +20,7 @@ filaStr = "f"
 colunnaStr = "c"
 workerStr = "w"
 # Nom del cos que s'utilitzara
-nom_cos = 'sdurv'
+nom_cos = 'ramonsd'
 
 
 def inicialitzacio(files, columnes, columnesB, operacions_worker, workers, resten, ibm_cos):
@@ -44,23 +44,6 @@ def inicialitzacio(files, columnes, columnesB, operacions_worker, workers, reste
         for j in range(columnesB):
             B[i, j] = randint(0, 10)
 
-    # Per cada submatriu de A es crea una entrada al diccionari
-    for i in range(SubMA):
-        # Si la matriu no esta buida
-        if np.size(A[i*divisio:((i+1)*divisio)]) != 0:
-            fitxer = filaStr + str(i*divisio)
-            if (fitxer not in fitxers):
-                matriu = A[i*divisio:((i+1)*divisio)]
-                fitxers.update({fitxer: matriu})
-
-    # Per cada submatriu de B es crea una entrada al diccionari
-    for i in range(SubMB):
-        if np.size(B[:, i*divisio:((i+1)*divisio)]) != 0:
-            fitxer = colunnaStr + str(i*divisio)
-            if (fitxer not in fitxers):
-                matriu = B[:, i*divisio:((i+1)*divisio)]
-                fitxers.update({fitxer: matriu})
-
     f_inici = 0
     c_inici = 0
     for i in range(workers):
@@ -79,8 +62,10 @@ def inicialitzacio(files, columnes, columnesB, operacions_worker, workers, reste
             # Actualitzem el diccionari afegint les files necessaries per la operació (si ja estan no posem noves entrades)
             nom_f = filaStr + str(f_inici)
             nom_c = colunnaStr + str(c_inici)
-            data.update({nom_f: fitxers.get(nom_f)})
-            data.update({nom_c: fitxers.get(nom_c)})
+            if np.size(A[f_inici:((f_inici+1))]) != 0:
+                data.update({nom_f: A[f_inici:((f_inici+divisio))]})
+            if np.size(B[:, c_inici:((c_inici+1))]) != 0:
+                data.update({nom_c: B[:, c_inici:((c_inici+divisio))]})
             c_inici = c_inici + divisio
         # Pujem la data (un diccionari de matrius) amb el nom de w_x
         fitxer = workerStr + str(i)
@@ -95,6 +80,7 @@ def inicialitzacio(files, columnes, columnesB, operacions_worker, workers, reste
                        Body=pickle.dumps(A, pickle.HIGHEST_PROTOCOL))
     ibm_cos.put_object(Bucket=nom_cos, Key='MatriuB.txt',
                        Body=pickle.dumps(B, pickle.HIGHEST_PROTOCOL))
+
 
 
 def matrix_mul(fitxers, ibm_cos):
@@ -206,10 +192,12 @@ if __name__ == '__main__':
                 iterdata[i] = iterdata[i] + str(nom_f) + " " + str(nom_c) + " "
                 c_inici = c_inici + divisio
 
+        
         # Inicialitzem les matrius
         futures = pw.call_async(
             inicialitzacio, [fila, columna, columnaB, operacions_worker, workers, resten])
         pw.wait(futures)
+        
         #Esperem a que s'hagi realitzat per descarregar les matrius A i B correctes
         # Iniciem el timer
         start_time = time.time()
