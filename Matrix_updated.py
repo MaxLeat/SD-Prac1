@@ -8,11 +8,11 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 # Dimensions de les matrius
-fila = 100  # = m
-columna = 100  # = n
-columnaB = 100      # = l
+fila = 500  # = m
+columna = 500  # = n
+columnaB = 500      # = l
 # Tamany de les divisions de les matrius
-divisio = 50
+divisio = 1
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 SubMB = 0  # Numero de Submatrius B que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 # Variables Auxiliars per creacio de fitxers
@@ -211,11 +211,6 @@ if __name__ == '__main__':
             inicialitzacio, [fila, columna, columnaB, operacions_worker, workers, resten])
         pw.wait(futures)
         #Esperem a que s'hagi realitzat per descarregar les matrius A i B correctes
-        cos = COSBackend()
-        A = cos.get_object(nom_cos, 'MatriuA.txt')
-        B = cos.get_object(nom_cos, 'MatriuB.txt')
-        A = pickle.loads(A)
-        B = pickle.loads(B)
         # Iniciem el timer
         start_time = time.time()
         # Fem la crida al map_reduce
@@ -223,13 +218,6 @@ if __name__ == '__main__':
         pw.wait(futures)
         # Calculem el temps que ha passat
         elapsed_time = time.time() - start_time
-        print('Matriu A:')
-        print()
-        print(A)
-        print()
-        print('Matriu B:')
-        print()
-        print(B)
         print(pw.get_result())
         print()
         print("EL TEMPS QUE HA TRIGAT ES:")

@@ -8,11 +8,11 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 # Dimensions de les matrius
-fila = 1000  # = m
-columna = 1000  # = n
-columnaB = 1000  # = l
+fila = 500  # = m
+columna = 500  # = n
+columnaB = 500  # = l
 # Tamany de les divisions de les matrius
-divisio = 1000
+divisio = 500
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 SubMB = 0  # Numero de Submatrius B que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
 # Variables Auxiliars per creacio de fitxers
