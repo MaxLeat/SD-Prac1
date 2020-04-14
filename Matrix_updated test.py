@@ -7,9 +7,9 @@ from random import randint
 
 # ESPAI VARIABLES GLOBALS
 # Dimensions de les matrius
-fila = 100  # = m
-columna = 100  # = n
-columnaB = 100      # = l
+fila = 3  # = m
+columna = 3  # = n
+columnaB = 4      # = l
 # Tamany de les divisions de les matrius
 divisio = 1
 SubMA = 0  # Numero de submatrius A que tindrem, Estblim el tamany un cop haguem comprovat que la resta de valors son correctes
@@ -44,6 +44,20 @@ def inicialitzacio(files, columnes, columnesB, operacions_worker, workers, reste
         for j in range(columnesB):
             B[i, j] = randint(0, 10)
 
+    #Test amb matrius de 3x3
+    #A=np.array([[1,2,3],[1,2,3],[1,2,3]])
+    #B=np.array([[1,2,3],[1,2,3],[1,2,3]])
+    #Resultat cada fila 6,12,18
+
+    #Test amb matrius de 3x3 i 3X4
+    #A=np.array([[1,2,3],[1,2,3],[1,2,3]])
+    #B=np.array([[1,2,3,4],[1,2,3,4],[1,2,3,4]])
+    #Resultat cada fila 6,12,18,24
+
+    #Test amb matrius de 3x4 i 4x3
+    #A=np.array([[1,2,3,4],[1,2,3,4],[1,2,3,4]])
+    #B=np.array([[1,2,3],[1,2,3],[1,2,3],[1,2,3]])
+    #Resultat cada fila 10, 20, 30
 
     f_inici = 0
     c_inici = 0
